@@ -158,8 +158,6 @@ popd > /dev/null
 # Add to lldbinit
 #
 $(cat ~/.lldbinit 2>/dev/null | grep "~/.defrustrator/plugin/defrustrator.py")
-ALREADY_INSTALLED=$?
-trap error_handler Err
 notice "Adding data formatter to ~/.lldbinit"
 if [ ! $ALREADY_INSTALLED -eq 0 ]; then
 	echo 'command script import "~/.defrustrator/plugin/defrustrator.py"' >> ~/.lldbinit
