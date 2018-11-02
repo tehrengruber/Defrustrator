@@ -38,7 +38,7 @@ def option_parser():
     return parser
 
 def __lldb_init_module (debugger, dict):
-    debugger.HandleCommand('command script add -f LLDB_Cling.cling cling')
+    debugger.HandleCommand('command script add -f defrustrator.cling cling')
     print("The \"cling\" command has been added successfully")
 
 def start():
