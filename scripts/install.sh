@@ -103,6 +103,12 @@ which wget > /dev/null
 if [ $? -ne 0 ]; then
   error "wget is not installed"
 fi
+
+which make > /dev/null
+if [ $? -ne 0 ]; then
+  error "make is not installed"
+fi
+
 notice "Done."
 
 # Download repository
