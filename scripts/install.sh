@@ -147,6 +147,9 @@ if [ -f /etc/lsb-release -o -d /etc/lsb-release.d ]; then
 elif [ -f /etc/fedora-release ]; then
   notice "Found operating system Fedora"
   release=$(cat /etc/fedora-release | sed -r 's/Fedora release ([0-9]+).*/\1/')´
+  if [ $release -eq "28" ];
+    release="27"
+  fi
   cling_binary_release_filename="cling_${cling_binary_release_date}_fedora.tar.bz2"
   cling_binary_download_url="https://root.cern.ch/download/cling/${cling_binary_release_filename}"
 fi
@@ -154,8 +157,9 @@ fi
 if [ -f /tmp/$cling_binary_release_filename ]; then
   notice "Found existing cling package download. Skipping download."
 else
-  wget --directory-prefix=/tmp --progress=bar:force $cling_binary_download_url 2>&1 | progressfilt
   # todo: this doesn't work right now
+  #wget --directory-prefix=/tmp --progress=bar:force $cling_binary_download_url 2>&1 | progressfilt
+  wget --directory-prefix=/tmp --progress=bar:force $cling_binary_download_url
   if [ $? -ne 0 ]; then
     error "Download failed."
   fi
