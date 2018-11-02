@@ -87,6 +87,11 @@ fancy_heading "   Till Ehrengruber"
 fancy_heading "   till@ehrengruber.ch"
 fancy_sep
 
+# Download repository
+git clone https://github.com/tehrengruber/Defrustrator.git ~/.defrustrator
+
+cd ~/.defrustrator
+
 # Check prerequisites
 heading "Check if all prerequisites are installed"
 which git > /dev/null
