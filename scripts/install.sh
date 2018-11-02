@@ -147,10 +147,10 @@ if [ -f /etc/lsb-release -o -d /etc/lsb-release.d ]; then
 elif [ -f /etc/fedora-release ]; then
   notice "Found operating system Fedora"
   release=$(cat /etc/fedora-release | sed -r 's/Fedora release ([0-9]+).*/\1/')´
-  if [ $release -eq "28" ];
+  if [ $release -eq "28" ]; then
     release="27"
   fi
-  cling_binary_release_filename="cling_${cling_binary_release_date}_fedora.tar.bz2"
+  cling_binary_release_filename="cling_${cling_binary_release_date}_fedora${release}.tar.bz2"
   cling_binary_download_url="https://root.cern.ch/download/cling/${cling_binary_release_filename}"
 fi
 
