@@ -151,6 +151,8 @@ elif [ -f /etc/fedora-release ]; then
     release="27"
   fi
   cling_binary_release_filename="cling_${cling_binary_release_date}_fedora${release}.tar.bz2"
+  # todo: fix
+  cling_binary_release_filename="cling_2018-11-02_fedora27.tar.bz2"
   cling_binary_download_url="https://root.cern.ch/download/cling/${cling_binary_release_filename}"
 fi
 
