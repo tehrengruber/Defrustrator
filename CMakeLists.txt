@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_STANDARD 11)
-add_library(example_shared SHARED example/shared.cpp)
 
 #find_package(LLVM CONFIG REQUIRED PATHS /home/tehrengruber/Downloads/cling_2016-08-09_ubuntu16/lib)
 #add_definitions(${LLVM_DEFINITIONS})
