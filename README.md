@@ -5,6 +5,11 @@ of LLDB's own expression evaluation features.
 
 __Installation__
 
+```
+sh -c "$(wget https://raw.githubusercontent.com/tehrengruber/Defrustrator/master/scripts/install.sh -O -)"
+
+```
+
 ## Usage
 
 __include ("<file>"/<<file>>)__ Include source files
