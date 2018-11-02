@@ -124,38 +124,8 @@ cd ~/.defrustrator
 # Download cling
 heading "Download cling"
 #  todo: test what happens on linux mint
-if [ -f /etc/lsb-release -o -d /etc/lsb-release.d ]; then
-  lsb_release -a 2>&1 | sed -r -e 's/Description:[\t]//;t;d' | grep Ubuntu > /dev/null
-  if [ $? -eq 0 ]; then
-    notice "Found Ubuntu operating system"
-  else
-    warn "Found ubuntu like operating system"
-  fi
-
-  # determine major_release version number
-  major_release=$(lsb_release -a 2>&1 | sed -r -e 's/Release:[\t]//;t;d' | sed -re 's/([0-9]+)\.[0-9]+/\1/')
-  if (( $major_release % 2 != 0 )); then
-      echo "You are using a non LTS release of ubuntu. This is not officially supported"
-      major_release=$(($major_release-1))
-  fi
-
-  # determine url
-  cling_binary_release_filename="cling_${cling_binary_release_date}_ubuntu${major_release}.tar.bz2"
-  cling_binary_download_url="https://root.cern.ch/download/cling/${cling_binary_release_filename}"
-
-  # todo: test that url is valid
-elif [ -f /etc/fedora-release ]; then
-  notice "Found operating system Fedora"
-  release=$(cat /etc/fedora-release | sed -r 's/Fedora release ([0-9]+).*/\1/')´
-  if [ $release -eq "28" ]; then
-    release="27"
-  fi
-  cling_binary_release_filename="cling_${cling_binary_release_date}_fedora${release}.tar.bz2"
-  # todo: fix
-  cling_binary_release_filename="cling_2018-11-02_fedora27.tar.bz2"
-  cling_binary_download_url="https://root.cern.ch/download/cling/${cling_binary_release_filename}"
-  echo $cling_binary_download_url
-fi
+cling_binary_release_filename="cling_2018-11-02_fedora27.tar.bz2"
+cling_binary_download_url="https://root.cern.ch/download/cling/cling_2018-11-02_fedora27.tar.bz2"
 
 if [ -f /tmp/$cling_binary_release_filename ]; then
   notice "Found existing cling package download. Skipping download."
