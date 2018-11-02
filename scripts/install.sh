@@ -87,11 +87,6 @@ fancy_heading "   Till Ehrengruber"
 fancy_heading "   till@ehrengruber.ch"
 fancy_sep
 
-# Download repository
-git clone https://github.com/tehrengruber/Defrustrator.git ~/.defrustrator
-
-cd ~/.defrustrator
-
 # Check prerequisites
 heading "Check if all prerequisites are installed"
 which git > /dev/null
@@ -109,6 +104,11 @@ if [ $? -ne 0 ]; then
   error "wget is not installed"
 fi
 notice "Done."
+
+# Download repository
+git clone https://github.com/tehrengruber/Defrustrator.git ~/.defrustrator
+
+cd ~/.defrustrator
 
 # Download cling
 heading "Download cling"
