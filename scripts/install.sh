@@ -103,6 +103,17 @@ which wget > /dev/null
 if [ $? -ne 0 ]; then
   error "wget is not installed"
 fi
+
+which make > /dev/null
+if [ $? -ne 0 ]; then
+  error "make is not installed"
+fi
+
+which tar > /dev/null
+if [ $? -ne 0 ]; then
+  error "tar is not installed"
+fi
+
 notice "Done."
 
 # Download repository
@@ -113,37 +124,15 @@ cd ~/.defrustrator
 # Download cling
 heading "Download cling"
 #  todo: test what happens on linux mint
-if [ -f /etc/lsb-release -o -d /etc/lsb-release.d ]; then
-  lsb_release -a 2>&1 | sed -r -e 's/Description:[\t]//;t;d' | grep Ubuntu > /dev/null
-  if [ $? -eq 0 ]; then
-    notice "Found Ubuntu operating system"
-  else
-    warn "Found ubuntu like operating system"
-  fi
+cling_binary_release_filename="cling_2018-11-02_fedora27.tar.bz2"
+cling_binary_download_url="https://root.cern.ch/download/cling/cling_2018-11-02_fedora27.tar.bz2"
 
-  # determine major_release version number
-  major_release=$(lsb_release -a 2>&1 | sed -r -e 's/Release:[\t]//;t;d' | sed -re 's/([0-9]+)\.[0-9]+/\1/')
-  if (( $major_release % 2 != 0 )); then
-      echo "You are using a non LTS release of ubuntu. This is not officially supported"
-      major_release=$(($major_release-1))
-  fi
-
-  # determine url
-  cling_binary_release_filename="cling_${cling_binary_release_date}_ubuntu${major_release}.tar.bz2"
-  cling_binary_download_url="https://root.cern.ch/download/cling/${cling_binary_release_filename}"
-
-  # todo: test that url is valid
-elif [ -f /etc/fedora-release ]; then
-  notice "Found operating system Fedora"
-  release=$(cat /etc/fedora-release | sed -r 's/Fedora release ([0-9]+).*/\1/')´
-  cling_binary_release_filename="cling_${cling_binary_release_date}_fedora${release}.tar.bz2"
-  cling_binary_download_url="https://root.cern.ch/download/cling/${cling_binary_release_filename}"
-fi
-
-if [ -f $cling_binary_release_filename ]; then
+if [ -f /tmp/$cling_binary_release_filename ]; then
   notice "Found existing cling package download. Skipping download."
 else
-  wget --directory-prefix=/tmp --progress=bar:force $cling_binary_download_url 2>&1 | progressfilt
+  # todo: this doesn't work right now
+  #wget --directory-prefix=/tmp --progress=bar:force $cling_binary_download_url 2>&1 | progressfilt
+  wget --directory-prefix=/tmp --progress=bar:force $cling_binary_download_url
   if [ $? -ne 0 ]; then
     error "Download failed."
   fi
@@ -168,9 +157,7 @@ popd > /dev/null
 #
 # Add to lldbinit
 #
-$(cat ~/.lldbinit 2>/dev/null | grep "LLDB-Eigen-Data-Formatter.py")
-ALREADY_INSTALLED=$?
-trap error_handler Err
+$(cat ~/.lldbinit 2>/dev/null | grep "~/.defrustrator/plugin/defrustrator.py")
 notice "Adding data formatter to ~/.lldbinit"
 if [ ! $ALREADY_INSTALLED -eq 0 ]; then
 	echo 'command script import "~/.defrustrator/plugin/defrustrator.py"' >> ~/.lldbinit

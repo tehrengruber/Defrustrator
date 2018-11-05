@@ -59,11 +59,11 @@ def help():
 
 class EvaluationThread(threading.Thread):
     def __init__(self, frame, code, options):
-       threading.Thread.__init__(self)
-       self.frame = frame
-       self.code = code
-       self.options = options
-       self.result = None
+        threading.Thread.__init__(self)
+        self.frame = frame
+        self.code = code
+        self.options = options
+        self.result = None
     def run(self):
         self.result = self.frame.EvaluateExpression(self.code, self.options)
 
@@ -90,7 +90,7 @@ class InterruptGuard:
         self.debugger = debugger
         self.old_handler = None
         self.old_handler_c = None
-        
+
     def handler(self, signal, frame):
         process = self.debugger.GetSelectedTarget().GetProcess()
         process.SendAsyncInterrupt()
@@ -99,11 +99,11 @@ class InterruptGuard:
     check if we have a signal handler defined in python
     """
     def has_sigint_handler(self):
-        return (signal.getsignal(signal.SIGINT) != None 
+        return (signal.getsignal(signal.SIGINT) != None
                 and signal.getsignal(signal.SIGINT) != InterruptGuard.dummy_handler)
 
     def __enter__(self):
-         # store previous (c) signal handler
+        # store previous (c) signal handler
         if not self.has_sigint_handler():
             # first set SIG_IGN signal while retrieving the current one
             self.old_handler_c = libc.signal(signal.SIGINT, signal.SIG_IGN)
@@ -114,7 +114,7 @@ class InterruptGuard:
 
         # register signal python handler
         self.old_handler = signal.signal(signal.SIGINT, lambda signal, frame: self.handler(signal, frame))
-       
+
     def __exit__(self, type, value, traceback):
         # remove previously registred signal handler
         signal.signal(signal.SIGINT, InterruptGuard.dummy_handler)
@@ -122,7 +122,7 @@ class InterruptGuard:
         if self.has_sigint_handler():
             signal.signal(signal.SIGINT, self.old_handler)
             self.old_handler = None
-        elif self.old_handler_c != None: 
+        elif self.old_handler_c != None:
             # if no handler was found in python restore the one from c
             libc.signal(signal.SIGINT, self.old_handler_c)
             self.old_handler_c = None
@@ -185,7 +185,7 @@ def eval_expr(debugger, code, options={}):
     if not options["global"]:
         for var in frame.GetVariables(True, True, False, True):
             wrapper_code += ("std::add_lvalue_reference<{type}>::type {name} = "
-                             "*reinterpret_cast<std::remove_reference<{type}>::type*>((void*){address});\n")\
+                             "*reinterpret_cast<std::remove_reference<{type}>::type*>((void*){address});\n") \
                 .format(name=var.GetName(), type=get_type_str(var.GetType()), address=var.AddressOf().GetValue())
 
         code = ("{{\n"
@@ -272,16 +272,16 @@ def get_type_str(raw_type):
         #print(len(tpl_args))
         #print(canonical_unwrapped_type.GetNumberOfTemplateArguments())
         assert(len(tpl_args) == canonical_unwrapped_type.GetNumberOfTemplateArguments())
-        
+
         # todo: this is not very generic yet
         for i in range(len(tpl_args)):
             arg = tpl_args[i].strip()
             typ = tpl_args_type[i]
             if typ == typ.GetBasicType(lldb.eBasicTypeInt) and int(arg)>=2**31:
                 tpl_args[i] = ctypes.c_int(int(arg)).value
-        
+
         return class_name + "<" + ", ".join(str(a) for a in tpl_args) + ">"
-     
+
     # check wether we can find the unqualified name of type of the "inner most" pointee
     #  if that is not the case we assume that we have we've got something
     #  like Ns::Type in the inner most type but only Type* one level higher 
@@ -329,8 +329,8 @@ def print_expr(debugger, expr, options):
     #   using the ValuePrinterSynthesizer
     expr = ("{"
             "  auto result = " + expr + ";\n"
-            "  Defrustrator::ValuePrinter<decltype(result)>::print(result);"
-            " }")
+                                        "  Defrustrator::ValuePrinter<decltype(result)>::print(result);"
+                                        " }")
     eval_expr(debugger, expr, options)
 
 def include_file(debugger, file):

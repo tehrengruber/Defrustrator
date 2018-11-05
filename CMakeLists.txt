@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD 11)
 #message("${LLVM_AVAILABLE_LIBS}")
 
 include_directories("include")
-include_directories("/home/tehrengruber/Development/EnhancedLLDB/cling_compile_test/inst/include")
-link_directories(/home/tehrengruber/Development/EnhancedLLDB/cling_compile_test/inst/lib)
+include_directories("bin/cling/include")
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/bin/cling/lib)
 add_library(lldbclingbridge SHARED src/bridge.cpp)
 target_link_libraries(lldbclingbridge dl cling clingUserInterface)
 
