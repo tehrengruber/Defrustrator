@@ -88,31 +88,33 @@ fancy_heading "   Till Ehrengruber"
 fancy_heading "   till@ehrengruber.ch"
 fancy_sep
 
+cd ~/.defrustrator # todo: add cmd arg for custom paths
+
 #
 # Check prerequisites
 #
 heading "Check if all prerequisites are installed"
-which git > /dev/null
+which git &> /dev/null
 if [ $? -ne 0 ]; then
   error "git is not installed"
 fi
 
-which cmake > /dev/null
+which cmake &> /dev/null
 if [ $? -ne 0 ]; then
   error "cmake is not installed"
 fi
 
-which wget > /dev/null
+which wget &> /dev/null
 if [ $? -ne 0 ]; then
   error "wget is not installed"
 fi
 
-which make > /dev/null
+which make &> /dev/null
 if [ $? -ne 0 ]; then
   error "make is not installed"
 fi
 
-which tar > /dev/null
+which tar &> /dev/null
 if [ $? -ne 0 ]; then
   error "tar is not installed"
 fi
@@ -169,9 +171,9 @@ if [ "$OS_NAME" = "Ubuntu" ]; then
   # todo: test that url is valid
 elif [ "$OS_NAME" = "Fedora" ]; then
   notice "Found operating system Fedora"
-  RELEASE=$(cat /etc/fedora-release | sed -r 's/Fedora release ([0-9]+).*/\1/')´
-  if [ "$RELEASE" -eq "28" ]; then
-    # todo check if fedora 28 is available
+  RELEASE=$(cat /etc/fedora-release | sed -r 's/Fedora release ([0-9]+).*/\1/')
+  if [ "$RELEASE" -eq "28" ] || [ "$RELEASE" -eq "29" ]; then
+    # todo: check if binary for fedora 28/29 is available
     RELEASE="27"
   fi
   CLING_BINARY_RELEASE_FILENAME="cling_${CLING_BINARY_RELEASE_DATE}_fedora${RELEASE}.tar.bz2"
