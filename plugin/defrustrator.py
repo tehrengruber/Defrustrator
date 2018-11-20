@@ -19,6 +19,7 @@ from os.path import expanduser
 # todo: find all types that are declared, but not available in the interpreter
 # todo: if the binary was compiled with a different compiler or different flags unexpected things might happen
 # todo: find a way to handle the `this` variable if inside a class scope
+# todo: command to add compile definitions
 #  for example printing an eigen vector gives incorrect results if a different c++ standard was used
 #  see lf.examples.quad.quad_demo node_coords when plugin uses c++11
 

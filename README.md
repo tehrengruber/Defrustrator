@@ -26,13 +26,27 @@ __Demo__
 ```
 (lldb) cling repl
 (cling) #include <iostream>
+(cling) std::cout << "Hello World!" << std::endl;
+Hello World!
+```
+
+```
+(lldb) cling repl
+(cling) #include <Eigen/Dense>
+(cling) Eigen::VectorXd v(3);
+(cling) v.setConstant(1);
+(lldb) cling p v
+1
+1
+1
 ```
 
 ## How it works
 
-This plugin consists of three components. A python extension handling the interaction with LLDB, some c code to be executed
-directly in the target process to load a shared library, and said library providing a minimal interface to send commands
-to the cling interpreter.
+This plugin consists of three components. A python extension handling the interaction with LLDB, some c code to be 
+executed by LLDB to load a shared library, and said library providing a minimal interface to send commands to the 
+cling interpreter, which by itself is also run in the same process. Since the interpreter is run in the same process
+all variables can be accessed if the type and memory address is known.
 
 ## Usage
 
@@ -77,9 +91,49 @@ Options:
 0
 ```
 
+__include_directories \<dir1\>, \<dir2\>, ...__ Add include directories
+
+```
+(lldb) cling include_directories /usr/include/eigen3
+```
+
+__load_config \<file\>__ Load configuration file
+
+Include directories, compiler flags, headers to be included can be stored to a json file loading when the first cling
+command is run.
+
+```
+{
+  "include_directories": ["/usr/include/eigen3"],
+  "compile_definitions": ["SOMEVAR=1"],
+  "headers": ["<Eigen/Dense>"]
+}
+```
+
 ## Limitations
 
-- All types must be complete, i.e. by including the corresponding header, before they can be accessed
+- The line numbers reported are not correct.
+
+- If compilation fails for some commands consecutive commands may also fail to compile even though they are correct.
+
+- Variables declared in local scope are only accessible in that statement
+
+    ```
+    (lldb) cling repl
+    (cling) int a=1;
+    (cling) a;
+    input_line_12:12:3: error: use of undeclared identifier 'a'
+      a;
+      ^
+    Compilation failed
+    ```
+
+- If inclusion of a header fails since the corresponding include directory was not added beforehand reincluding the
+  header might not work.
+
+- In case a variable is declared and compilation fails it might not be possible to redeclare it.
+
+- All types must be completly defined, i.e. by including the corresponding header, before they can be accessed
   or an error will be thrown.
 
   Consider the following code:
@@ -129,21 +183,3 @@ Options:
   Compilation failed
   (lldb)
   ```
-
-- The line numbers reported are not correct.
-
-- If compilation fails for some commands consecutive commands may also fail to compile even though they are correct.
-
-- Variables declared in local scope are only accessible in that statement
-
-    ```
-    (lldb) cling repl
-    (cling) int a=1;
-    (cling) a;
-    input_line_12:12:3: error: use of undeclared identifier 'a'
-      a;
-      ^
-    Compilation failed
-    ```
-
-- In case a variable is declared and compilation fails it might not be possible to redeclare it.
