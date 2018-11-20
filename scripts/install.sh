@@ -123,6 +123,7 @@ notice "Done."
 # Download repository
 #
 heading "Repository Setup"
+BASE_PATH="~/.defrustrator"
 if [ -d "$(pwd)/.git" ]; then
     # todo: check if it is not another repository (i.e. by the id of the first commit)
     pushd "$(pwd)" > /dev/null
