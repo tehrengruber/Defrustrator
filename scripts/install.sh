@@ -88,8 +88,6 @@ fancy_heading "   Till Ehrengruber"
 fancy_heading "   till@ehrengruber.ch"
 fancy_sep
 
-cd ~/.defrustrator # todo: add cmd arg for custom paths
-
 #
 # Check prerequisites
 #
@@ -126,6 +124,7 @@ notice "Done."
 #
 heading "Repository Setup"
 if [ -d "$(pwd)/.git" ]; then
+    # todo: check if it is not another repository (i.e. by the id of the first commit)
     pushd "$(pwd)" > /dev/null
     notice "Using BASE_PATH $(pwd)"
     BASE_PATH="$(pwd)"
