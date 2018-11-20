@@ -44,7 +44,7 @@ Hello World!
 ## How it works
 
 This plugin consists of three components. A python extension handling the interaction with LLDB, some c code to be 
-executed by LLDB to load a shared library, and said library providing a minimal interface to send commands to the 
+executed inside LLDB to load a shared library, and said library providing a minimal interface to send commands to the 
 cling interpreter, which by itself is also run in the same process. Since the interpreter is run in the same process
 all variables can be accessed if the type and memory address is known.
 

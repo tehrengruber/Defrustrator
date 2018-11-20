@@ -1,15 +1,14 @@
 #!/usr/bin/python
 import os
-import optparse
-import tempfile
 import lldb
 import threading
 import time
 import re
+import ctypes
+import json
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from pygments.lexers.c_cpp import CppLexer
-from pygments.lexers import SqlLexer
 from os.path import expanduser
 
 # todo: add command to add include paths to cling
@@ -22,42 +21,25 @@ from os.path import expanduser
 # todo: command to add compile definitions
 #  for example printing an eigen vector gives incorrect results if a different c++ standard was used
 #  see lf.examples.quad.quad_demo node_coords when plugin uses c++11
-
-cling_path = os.path.dirname(__file__) + "/../bin/cling"
-
-base_path = os.path.dirname(__file__) + "/../"
-history_file = expanduser("~/.lldb-cling-plugin-history")
-bridge_code = False
-last_block = None
-
-def option_parser():
-    usage = "usage: %prog [options]"
-    description='''bla blub
-
-    '''
-    parser = optparse.OptionParser(description=description, prog='cling', usage=usage)
-    #parser.add_option('-i', '--in-scope', action='store_true', dest='inscope', help='in_scope_only = True', default=False)
-    #parser.add_option('-a', '--arguments', action='store_true', dest='arguments', help='arguments = True', default=False)
-    #parser.add_option('-l', '--locals', action='store_true', dest='locals', help='locals = True', default=False)
-    #parser.add_option('-s', '--statics', action='store_true', dest='statics', help='statics = True', default=False)
-    return parser
-
-def __lldb_init_module (debugger, dict):
-    debugger.HandleCommand('command script add -f defrustrator.cling cling')
-    print("The \"cling\" command has been added successfully")
-
-def help():
-    return '''The following subcommands are supported:
-        include ("<file>"/<<file>>) -- Include source file
-        repl -- Start cling repl
-        print <expr> -- Print expressions return value using operator<< if possible
-        expression <expr> -- Evaluate expression
-        include_directories <dir1>, <dir2>, ... -- Add include directories
-        load_config -- Load configuration of include directories, compile definitions, headers
-    '''
-
 # todo: add commands to (import headers and libraries, add include paths)
 # todo: add help for subcommands
+# todo: autocompletion for commands (might not be possible)
+
+#
+# Global variables
+#
+cling_path = os.path.dirname(__file__) + "/../bin/cling"
+base_path = os.path.dirname(__file__) + "/../"
+
+history_file = expanduser("~/.lldb-defrustrator-history")
+current_process_id = None
+
+type_cache = {}
+
+# read bridge code
+with open(base_path + '/src/plugin_bridge.cpp', 'r') as file:
+    bridge_code = file.read()
+bridge_code=bridge_code.replace("DEFRUSTRATOR_BASE_PATH", base_path)
 
 class EvaluationThread(threading.Thread):
     def __init__(self, frame, code, options):
@@ -126,10 +108,23 @@ class InterruptGuard:
             self.old_handler = None
         elif self.old_handler_c != None:
             # if no handler was found in python restore the one from c
+            # todo: this leads to a segfault in the lldb prompt
             #libc.signal(signal.SIGINT, self.old_handler_c)
             self.old_handler_c = None
 
-current_process_id = None
+def __lldb_init_module (debugger, dict):
+    debugger.HandleCommand('command script add -f defrustrator.cling cling')
+    print("The \"cling\" command has been added successfully")
+
+def help():
+    return '''The following subcommands are supported:
+        include ("<file>"/<<file>>) -- Include source file
+        repl -- Start cling repl
+        print <expr> -- Print expressions return value using operator<< if possible
+        expression <expr> -- Evaluate expression
+        include_directories <dir1>, <dir2>, ... -- Add include directories
+        load_config -- Load configuration of include directories, compile definitions, headers
+    '''
 
 def lldb_evaluate(debugger, code, interruptable=True):
     global bridge_code, current_process_id
@@ -155,7 +150,6 @@ def lldb_evaluate(debugger, code, interruptable=True):
     options.SetUnwindOnError(True)
 
     if interruptable:
-
         thread = EvaluationThread(frame, code, options)
         thread.start() # start the thread
         # spin until thread finishes and use InterruptGuard to interrupt the process
@@ -168,8 +162,6 @@ def lldb_evaluate(debugger, code, interruptable=True):
         return thread.result
     else:
         return frame.EvaluateExpression(code, options)
-
-type_cache = {}
 
 def type_exists(debugger, type_name):
     if type_name == "(anonymous class)":
@@ -243,8 +235,6 @@ def eval_expr(debugger, code, options={}):
         raise Exception()
 
     return result
-
-import ctypes
 
 def get_type_str(raw_type):
     assert(isinstance(raw_type, lldb.SBType))
@@ -364,8 +354,6 @@ def print_expr(debugger, expr, options):
 def include_file(debugger, filename):
     eval_expr(debugger, "#include {}".format(filename), {"global": True})
 
-import json
-
 def load_config(debugger):
     default_config = {
         "include_directories": [],
@@ -415,13 +403,6 @@ def cling(debugger, command, result, dict):
     if len(debugger.GetSelectedTarget().FindSymbols("dlopen")) == 0:
         print "Error: target needs to be linked with libdl (add -ldl to compiler invocation)"
         return
-
-    # read bridge code
-    # todo: load shared library only once and store handle location
-    global bridge_code
-    with open(base_path + '/src/plugin_bridge.cpp', 'r') as file:
-        bridge_code = file.read()
-    bridge_code=bridge_code.replace("DEFRUSTRATOR_BASE_PATH", base_path)
 
     #
     # parse command
