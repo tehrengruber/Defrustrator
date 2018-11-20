@@ -2,7 +2,6 @@
 
 # variables
 CLING_BINARY_RELEASE_DATE="2018-11-01"
-UPDATE=true
 
 # color helpers
 function heading () {
@@ -125,15 +124,18 @@ notice "Done."
 heading "Repository Setup"
 BASE_PATH="~/.defrustrator"
 if [ -d "$(pwd)/.git" ]; then
-    # todo: check if it is not another repository (i.e. by the id of the first commit)
     pushd "$(pwd)" > /dev/null
     notice "Using BASE_PATH $(pwd)"
     BASE_PATH="$(pwd)"
     popd > /dev/null
 fi
+
 if [ ! -d "$BASE_PATH" ]; then
     git clone https://github.com/tehrengruber/Defrustrator.git $BASE_PATH
-elif $UPDATE ; then
+else
+    if [ ! -z "$(git status --porcelain)" ]; then
+      warning "Repository contains uncommited changes. Skipped update"
+    fi
     notice "Update? [yes, no]:"
     read PROCEED
     if [ "$PROCEED" = "yes" ]; then
