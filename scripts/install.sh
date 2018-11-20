@@ -122,7 +122,7 @@ notice "Done."
 # Download repository
 #
 heading "Repository Setup"
-BASE_PATH="~/.defrustrator"
+BASE_PATH=$HOME/.defrustrator
 if [ -d "$(pwd)/.git" ]; then
     pushd "$(pwd)" > /dev/null
     notice "Using BASE_PATH $(pwd)"
@@ -138,7 +138,7 @@ cd $BASE_PATH
 
 if [ -d "$BASE_PATH" ]; then
     if [ ! -z "$(git status --porcelain)" ]; then
-      warning "Repository contains uncommited changes. Skipped update"
+      warn "Repository contains uncommited changes. Skipped update"
       exit 1
     fi
     notice "Update? [yes, no]:"
@@ -220,13 +220,13 @@ make
 popd > /dev/null
 
 #
-# Add to lldbinit
+# Add to .lldbinit
 #
-cat ~/.lldbinit 2>/dev/null | grep "$BASE_PATH/plugin/defrustrator.py" > /dev/null
+cat $HOME/.lldbinit 2>/dev/null | grep "$BASE_PATH/plugin/defrustrator.py" > /dev/null
 ALREADY_INSTALLED=$?
-heading "Adding data formatter to ~/.lldbinit"
+heading "Adding plugin to $HOME/.lldbinit"
 if [ ! "$ALREADY_INSTALLED" -eq "0" ]; then
-	echo 'command script import "$BASE_PATH/plugin/defrustrator.py"' >> ~/.lldbinit
+	echo 'command script import "$BASE_PATH/plugin/defrustrator.py"' >> $HOME/.lldbinit
 else
 	notice "Skipping"
 fi
