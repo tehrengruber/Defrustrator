@@ -98,22 +98,32 @@ fi
 
 which cmake &> /dev/null
 if [ $? -ne 0 ]; then
-  error "cmake is not installed"
+  error "cmake not found"
 fi
 
 which wget &> /dev/null
 if [ $? -ne 0 ]; then
-  error "wget is not installed"
+  error "wget not found"
 fi
 
 which make &> /dev/null
 if [ $? -ne 0 ]; then
-  error "make is not installed"
+  error "make not found"
 fi
 
 which tar &> /dev/null
 if [ $? -ne 0 ]; then
-  error "tar is not installed"
+  error "tar not found"
+fi
+
+python -c "import pygments" &> /dev/null
+if [ $? -ne 0 ]; then
+  echo "pygments not found (install using pip)"
+fi
+
+python -c "import prompt_toolkit" &> /dev/null
+if [ $? -ne 0 ]; then
+  echo "prompt_toolkit not found (install using pip)"
 fi
 
 notice "Done."
@@ -122,7 +132,7 @@ notice "Done."
 # Download repository
 #
 heading "Repository Setup"
-BASE_PATH=$HOME/.defrustrator
+BASE_PATH="$HOME/.defrustrator"
 if [ -d "$(pwd)/.git" ]; then
     pushd "$(pwd)" > /dev/null
     notice "Using BASE_PATH $(pwd)"
@@ -226,7 +236,7 @@ cat $HOME/.lldbinit 2>/dev/null | grep "$BASE_PATH/plugin/defrustrator.py" > /de
 ALREADY_INSTALLED=$?
 heading "Adding plugin to $HOME/.lldbinit"
 if [ ! "$ALREADY_INSTALLED" -eq "0" ]; then
-	echo 'command script import "$BASE_PATH/plugin/defrustrator.py"' >> $HOME/.lldbinit
+	echo "command script import \"$BASE_PATH/plugin/defrustrator.py\"" >> $HOME/.lldbinit
 else
 	notice "Skipping"
 fi
