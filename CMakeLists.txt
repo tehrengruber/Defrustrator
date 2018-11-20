@@ -18,5 +18,6 @@ target_compile_definitions(lldbclingbridge PUBLIC DEFRUSTRATOR_BASE_PATH=\"${CMA
 #
 # Examples
 #
+# todo: check if eigen is installed
 add_executable(example_eigen example/eigen2.cpp)
 target_include_directories(example_eigen PUBLIC /usr/include/eigen3)
