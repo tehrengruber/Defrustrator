@@ -14,11 +14,12 @@ bash -c "$(wget https://raw.githubusercontent.com/tehrengruber/Defrustrator/mast
 __Help__
 ```
 The following subcommands are supported:
-start -- Start cling in a new terminal window
-include ("<file>"/<<file>>) -- Include source file
-repl -- Start cling repl
-print <expr> -- Print expressions return value using operator<< if possible
-expression <expr> -- Evaluate expression
+    include ("<file>"/<<file>>) -- Include source file
+    repl -- Start cling repl
+    print <expr> -- Print expressions return value using operator<< if possible
+    expression <expr> -- Evaluate expression
+    include_directories <dir1>, <dir2>, ... -- Add include directories
+    load_config -- Load configuration of include directories, compile definitions, headers
 ```
 
 __Demo__
