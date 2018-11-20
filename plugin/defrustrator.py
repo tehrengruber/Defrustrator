@@ -15,12 +15,16 @@ from os.path import expanduser
 # todo: add command to add include paths to cling
 # todo: how about rvalue references
 # todo: add prompt toolkit and pygments to the requirements in the readme
-
+# todo: hook at run to load_config and include headers
 # todo: find all types that are declared, but not available in the interpreter
+# todo: if the binary was compiled with a different compiler or different flags unexpected things might happen
+# todo: find a way to handle the `this` variable if inside a class scope
+#  for example printing an eigen vector gives incorrect results if a different c++ standard was used
+#  see lf.examples.quad.quad_demo node_coords when plugin uses c++11
 
 cling_path = os.path.dirname(__file__) + "/../bin/cling"
 
-lldb_cling_bridge_path = os.path.dirname(__file__) + "/../"
+base_path = os.path.dirname(__file__) + "/../"
 history_file = expanduser("~/.lldb-cling-plugin-history")
 bridge_code = False
 last_block = None
@@ -41,17 +45,14 @@ def __lldb_init_module (debugger, dict):
     debugger.HandleCommand('command script add -f defrustrator.cling cling')
     print("The \"cling\" command has been added successfully")
 
-def start():
-    print("Starting cling...")
-    os.system("x-terminal-emulator -e " + cling_path)
-
 def help():
     return '''The following subcommands are supported:
-        start -- Start cling in a new terminal window
         include ("<file>"/<<file>>) -- Include source file
         repl -- Start cling repl
         print <expr> -- Print expressions return value using operator<< if possible
         expression <expr> -- Evaluate expression
+        include_directories <dir1>, <dir2>, ... -- Add include directories
+        load_config -- Load configuration of include directories, compile definitions, headers
     '''
 
 # todo: add commands to (import headers and libraries, add include paths)
@@ -116,7 +117,7 @@ class InterruptGuard:
         self.old_handler = signal.signal(signal.SIGINT, lambda signal, frame: self.handler(signal, frame))
 
     def __exit__(self, type, value, traceback):
-        # remove previously registred signal handler
+        # remove previously registered signal handler
         signal.signal(signal.SIGINT, InterruptGuard.dummy_handler)
         # restore old signal handler
         if self.has_sigint_handler():
@@ -124,11 +125,13 @@ class InterruptGuard:
             self.old_handler = None
         elif self.old_handler_c != None:
             # if no handler was found in python restore the one from c
-            libc.signal(signal.SIGINT, self.old_handler_c)
+            #libc.signal(signal.SIGINT, self.old_handler_c)
             self.old_handler_c = None
 
-def lldb_evaluate(debugger, code):
-    global bridge_code
+current_process_id = None
+
+def lldb_evaluate(debugger, code, interruptable=True):
+    global bridge_code, current_process_id
     # prepend bridge code
     code = bridge_code + "\n//\n// DYNAMIC CODE\n//\n" + str(code)
     target = debugger.GetSelectedTarget()
@@ -138,6 +141,9 @@ def lldb_evaluate(debugger, code):
     if not frame.IsValid():
         print "no frame here"
         return
+    if process.GetUniqueID() != current_process_id:
+        current_process_id=process.GetUniqueID()
+        load_config(debugger)
 
     # start a thread that runs until the currently evaluated expression returns.
     # since the expression is evaluated without any timeout and
@@ -147,21 +153,41 @@ def lldb_evaluate(debugger, code):
     options.SetTimeoutInMicroSeconds(0) # no timeout
     options.SetUnwindOnError(True)
 
-    thread = EvaluationThread(frame, code, options)
-    thread.start() # start the thread
-    # spin until thread finishes and use InterruptGuard to interrupt the process
-    #  when ctrl+c is pressed
-    with InterruptGuard(debugger) as interrupt_guard:
-        while thread.isAlive():
-            time.sleep(0.05)
+    if interruptable:
 
-    thread.join()
-    return thread.result
+        thread = EvaluationThread(frame, code, options)
+        thread.start() # start the thread
+        # spin until thread finishes and use InterruptGuard to interrupt the process
+        #  when ctrl+c is pressed
+        with InterruptGuard(debugger) as interrupt_guard:
+            while thread.isAlive():
+                time.sleep(0.05)
 
-def eval_expr_default_options():
-    return {
-        "global": False
-    }
+        thread.join()
+        return thread.result
+    else:
+        return frame.EvaluateExpression(code, options)
+
+type_cache = {}
+
+def type_exists(debugger, type_name):
+    if type_name == "(anonymous class)":
+        return False
+    if type_name in type_cache:
+        return type_cache[type_name]
+    type_name = type_name.replace("\n", "\\n").replace('"', '\\"')
+    result = lldb_evaluate(debugger, "(bool) type_exists(\"" + type_name + "\");", False)
+    assert(result.GetError().Success())
+    if result.GetValue()=="true": # todo: not a clean way to extract the value
+        type_cache[type_name] = True
+    return result.GetValue()=="true"
+
+def include_directories(debugger, dirs):
+    for dir in dirs:
+        result = lldb_evaluate(debugger, "add_include_path(\"" + dir + "\");")
+        # todo: add error handling
+        #if not result.GetError().Success():
+        #    print("Warning: Failed to add to include paths {}".format(dir))
 
 def eval_expr(debugger, code, options={}):
     """
@@ -177,16 +203,21 @@ def eval_expr(debugger, code, options={}):
     if not frame.IsValid():
         raise NoFrameException()
 
-    # todo: reset interpreter when the frame changes, but keep includes
     # todo: test that everything works correctly when the frame changes and both frames contain the same variables
     wrapper_code = ""
 
     # todo: test that only the inner most variable is used (SBValue::IsInScope?)
     if not options["global"]:
         for var in frame.GetVariables(True, True, False, True):
-            wrapper_code += ("std::add_lvalue_reference<{type}>::type {name} = "
-                             "*reinterpret_cast<std::remove_reference<{type}>::type*>((void*){address});\n") \
-                .format(name=var.GetName(), type=get_type_str(var.GetType()), address=var.AddressOf().GetValue())
+            if var == "this":
+                print("Note: variable `this` skipped")
+            type = get_type_str(var.GetType())
+            if type_exists(debugger, type):
+                wrapper_code += ("std::add_lvalue_reference<{type}>::type {name} = "
+                                "*reinterpret_cast<std::remove_reference<{type}>::type*>((void*){address});\n") \
+                    .format(name=var.GetName(), type=type, address=var.AddressOf().GetValue())
+            else:
+                print("Warning: variable `{name}` with type `{type}` skipped".format(name=var.GetName(), type=type))
 
         code = ("{{\n"
                 "  // Wrapper code\n"
@@ -200,8 +231,7 @@ def eval_expr(debugger, code, options={}):
     result = lldb_evaluate(debugger, "send_command(\"" + code + "\");")
 
     # check the compilation result
-    frame = debugger.GetSelectedTarget().GetProcess().GetSelectedThread().GetSelectedFrame()
-    compilation_result = frame.EvaluateExpression("(int) get_last_compilation_result()").GetValue()
+    compilation_result = frame.EvaluateExpression("(int) defrustrator_get_last_compilation_result()").GetValue()
     if compilation_result == "0":
         pass
     elif compilation_result == "1":
@@ -253,24 +283,24 @@ def get_type_str(raw_type):
         class_name = re.sub(r"(.*?)<(.*)", r"\1", unwrapped_type.GetCanonicalType().GetName())
         # get all template arguments (for value arguments we want the value not the type)
         tpl_args = []
-        arg_begin=canonical_unwrapped_type_name.find('<')
+        arg_begin=canonical_unwrapped_type_name.find('<')+1
         depth=0
-        #for pos in xrange(0, len(canonical_unwrapped_type_name)-1):
-        #    if canonical_unwrapped_type_name[pos] == "<":
-        #        depth += 1
-        #    if canonical_unwrapped_type_name[pos] == "," and depth == 1:
-        #        tpl_args.append(canonical_unwrapped_type_name[arg_begin:pos])
-        #        arg_begin = pos+1
-        #    if canonical_unwrapped_type_name[pos] == ">" and depth == 1:
-        #        tpl_args.append(canonical_unwrapped_type_name[arg_begin:pos])
-        #        break
+        for pos in xrange(0, len(canonical_unwrapped_type_name)):
+            if canonical_unwrapped_type_name[pos] == "<":
+                depth += 1
+            if canonical_unwrapped_type_name[pos] == ">":
+                depth -= 1
+            if canonical_unwrapped_type_name[pos] == "," and depth == 1:
+                tpl_args.append(canonical_unwrapped_type_name[arg_begin:pos])
+                arg_begin = pos+1
+            if canonical_unwrapped_type_name[pos] == ">" and depth == 0:
+                tpl_args.append(canonical_unwrapped_type_name[arg_begin:pos])
+                depth-=1
+                break
+        #print(canonical_unwrapped_type_name)
         #print(tpl_args)
         #tpl_args = canonical_unwrapped_type.GetName()[len(class_name)+1:-1].split(',') # here we want the value
-        #tpl_args_type = unwrapped_type.template_args # here we want the type
-        #print(class_name)
-        #print(tpl_args)
-        #print(len(tpl_args))
-        #print(canonical_unwrapped_type.GetNumberOfTemplateArguments())
+        tpl_args_type = unwrapped_type.template_args # here we want the type
         assert(len(tpl_args) == canonical_unwrapped_type.GetNumberOfTemplateArguments())
 
         # todo: this is not very generic yet
@@ -306,9 +336,6 @@ def get_variables(debugger):
     return variables
 
 def repl(debugger, options):
-    # send information about all variables to the plugin
-    #frame = send_frame_information(debugger)
-
     # read input and evaluate commands
     try:
         history = FileHistory(history_file)
@@ -328,13 +355,51 @@ def print_expr(debugger, expr, options):
     #  see cling::IncrementalParser::ParseInternal which parses the code and transforms the code
     #   using the ValuePrinterSynthesizer
     expr = ("{"
-            "  auto result = " + expr + ";\n"
+            "  auto& result = " + expr + ";\n"
                                         "  Defrustrator::ValuePrinter<decltype(result)>::print(result);"
                                         " }")
     eval_expr(debugger, expr, options)
 
-def include_file(debugger, file):
-    eval_expr(debugger, "#include {}".format(file), {"global": True})
+def include_file(debugger, filename):
+    eval_expr(debugger, "#include {}".format(filename), {"global": True})
+
+import json
+
+def load_config(debugger):
+    default_config = {
+        "include_directories": [],
+        "compile_definitions": [],
+        "headers": []
+    }
+    target = debugger.GetSelectedTarget()
+    for m in target.module_iter():
+        conf_path = str(m.GetFileSpec())+".defrustrator.json"
+        if os.path.isfile(conf_path):
+            print("Loading config {}".format(conf_path))
+            with open(conf_path, "r") as read_file:
+                # parse config
+                conf = json.load(read_file)
+                conf_stash = default_config.copy()
+                conf_stash.update(conf)
+                conf = conf_stash
+
+                print("Adding include directories {}".format(' '.join(conf["include_directories"])))
+                include_directories(debugger, conf["include_directories"])
+                print("Loading compile_definitions {}".format(' '.join(conf["compile_definitions"])))
+                for comp_def in conf["compile_definitions"]:
+                    pos = comp_def.find("=")
+                    if pos == -1:
+                        code = "#define {}".format(comp_def)
+                    else:
+                        code = "#define {} {}".format(comp_def[0:pos], comp_def[pos+1:])
+                    #print(code)
+                    eval_expr(debugger, code, {"global": True})
+                print("Loading headers {}".format(' '.join(conf["headers"])))
+                for header in conf["headers"]:
+                    if header[0] != "\"" and header[0] != "<":
+                        header = "\""+header+"\""
+                    include_file(debugger, header)
+
 
 def parse_command_options(commands):
     options = {}
@@ -353,8 +418,9 @@ def cling(debugger, command, result, dict):
     # read bridge code
     # todo: load shared library only once and store handle location
     global bridge_code
-    with open(lldb_cling_bridge_path + '/src/plugin_bridge.cpp', 'r') as file:
+    with open(base_path + '/src/plugin_bridge.cpp', 'r') as file:
         bridge_code = file.read()
+    bridge_code=bridge_code.replace("DEFRUSTRATOR_BASE_PATH", base_path)
 
     #
     # parse command
@@ -370,6 +436,12 @@ def cling(debugger, command, result, dict):
         start()
     elif commands[0] == "include":
         include_file(debugger, commands[1])
+    elif commands[0] == "include_directories":
+        include_directories(debugger, commands[1:])
+    elif commands[0] == "load_config":
+        load_config(debugger)
+    elif commands[0] == "type_exists":
+        type_exists(debugger, ' '.join(commands[1:]))
     elif commands[0] == "repl":
         repl(debugger, options)
     elif commands[0] == "expression" or commands[0] == "expr" or commands[0] == "e":

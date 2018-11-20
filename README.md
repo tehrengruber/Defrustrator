@@ -1,13 +1,37 @@
 # Defrustrator
 
-LLDB Plugin based on cling allow evaluation of almost all c++ expressions while debugging, overcoming most limitations
+LLDB Plugin based on cling to allow evaluation of almost all c++ expressions while debugging, overcoming most limitations
 of LLDB's own expression evaluation features.
+
+__WARNING__ This is an alpha version! Be careful and do not trust the results.
 
 __Installation__
 
 ```
 bash -c "$(wget https://raw.githubusercontent.com/tehrengruber/Defrustrator/master/scripts/install.sh -O -)"
 ```
+
+__Help__
+```
+The following subcommands are supported:
+start -- Start cling in a new terminal window
+include ("<file>"/<<file>>) -- Include source file
+repl -- Start cling repl
+print <expr> -- Print expressions return value using operator<< if possible
+expression <expr> -- Evaluate expression
+```
+
+__Demo__
+```
+(lldb) cling repl
+(cling) #include <iostream>
+```
+
+## How it works
+
+This plugin consists of three components. A python extension handling the interaction with LLDB, some c code to be executed
+directly in the target process to load a shared library, and said library providing a minimal interface to send commands
+to the cling interpreter.
 
 ## Usage
 
