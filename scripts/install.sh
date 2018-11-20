@@ -132,9 +132,14 @@ fi
 
 if [ ! -d "$BASE_PATH" ]; then
     git clone https://github.com/tehrengruber/Defrustrator.git $BASE_PATH
-else
+fi
+
+cd $BASE_PATH
+
+if [ -d "$BASE_PATH" ]; then
     if [ ! -z "$(git status --porcelain)" ]; then
       warning "Repository contains uncommited changes. Skipped update"
+      exit 1
     fi
     notice "Update? [yes, no]:"
     read PROCEED
@@ -146,8 +151,6 @@ else
     fi
     unset PROCEED
 fi
-
-cd $BASE_PATH
 
 #
 # Download cling
