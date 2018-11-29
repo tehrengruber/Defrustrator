@@ -140,13 +140,11 @@ if [ -d "$(pwd)/.git" ]; then
     popd > /dev/null
 fi
 
+BASE_PATH_EXISTS=
 if [ ! -d "$BASE_PATH" ]; then
     git clone https://github.com/tehrengruber/Defrustrator.git $BASE_PATH
-fi
-
-cd $BASE_PATH
-
-if [ -d "$BASE_PATH" ]; then
+elif [ -d "$BASE_PATH" ]; then
+    pushd $BASE_PATH > /dev/null
     if [ ! -z "$(git status --porcelain)" ]; then
       warn "Repository contains uncommited changes. Skipped update"
       exit 1
@@ -155,12 +153,12 @@ if [ -d "$BASE_PATH" ]; then
     read PROCEED
     if [ "$PROCEED" = "yes" ]; then
         notice "Directory $BASE_PATH already exists. Updating."
-        pushd $BASE_PATH > /dev/null
         git pull
-        popd > /dev/null
     fi
     unset PROCEED
+    popd > /dev/null
 fi
+cd $BASE_PATH
 
 #
 # Download cling

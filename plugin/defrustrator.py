@@ -24,6 +24,9 @@ from os.path import expanduser
 # todo: add commands to (import headers and libraries, add include paths)
 # todo: add help for subcommands
 # todo: autocompletion for commands (might not be possible)
+# todo: occasionally lldbinit is not changed correctly
+# todo: global variables don't work (idea: put wrapper code inside a unique namespace and define them there
+#  i.e. namespace namespace wrapper { auto& global_var = ...; /* actual code */ }
 
 #
 # Global variables
@@ -154,9 +157,9 @@ def lldb_evaluate(debugger, code, interruptable=True):
         thread.start() # start the thread
         # spin until thread finishes and use InterruptGuard to interrupt the process
         #  when ctrl+c is pressed
-        with InterruptGuard(debugger) as interrupt_guard:
-            while thread.isAlive():
-                time.sleep(0.05)
+        #with InterruptGuard(debugger) as interrupt_guard:
+        while thread.isAlive():
+            time.sleep(0.05)
 
         thread.join()
         return thread.result
@@ -201,16 +204,49 @@ def eval_expr(debugger, code, options={}):
 
     # todo: test that only the inner most variable is used (SBValue::IsInScope?)
     if not options["global"]:
+        # compute for each variable a number describing it's depth in terms of blocks
+        # i.e. a variable in the current block has depth 0, one in the parent block depth 1 and so on
+
+        # fetch all blocks
+        blocks = []
+        current_block = frame.GetBlock()
+        while current_block.IsValid():
+            blocks.append(current_block)
+            current_block = current_block.GetParent()
+        # get variables in each block
+        blocks_vars = map(lambda block: block.GetVariables(frame, True, True, False, True), blocks)
+        # dictionary assigning each variable (key is an id) a depth
+        var_depths = {}
+        # iterate over all variables
         for var in frame.GetVariables(True, True, False, True):
+            # set depth to maximum integer value in the beginning since global variable will not be found in any block
+            var_depths[var.GetID()] = sys.maxint
+            for i, block_vars in enumerate(blocks_vars):
+                for block_var in block_vars:
+                    if var.GetID() == block_var.GetID():
+                        var_depths[var.GetID()] = i
+        # dictionary assigning each variable name an array containing it's depth and an SBValue objects
+        vars = {}
+        for var in frame.GetVariables(True, True, False, True):
+            if not var.GetName() in vars:
+                vars[var.GetName()] = (var_depths[var.GetID()], var)
+            else:
+                if var_depths[var.GetID()] < vars[var.GetName()][0]:
+                    vars[var.GetName()] = (var_depths[var.GetID()], var)
+
+        # write wrapper code making variables accessible
+        for (_, (depth, var)) in vars.iteritems():
+            address = frame.EvaluateExpression("&"+var.GetName()).GetValue()
             if var == "this":
                 print("Note: variable `this` skipped")
-            type = get_type_str(var.GetType())
-            if type_exists(debugger, type):
+
+            var_type = get_type_str(var.GetType())
+            if type_exists(debugger, var_type):
                 wrapper_code += ("std::add_lvalue_reference<{type}>::type {name} = "
                                 "*reinterpret_cast<std::remove_reference<{type}>::type*>((void*){address});\n") \
-                    .format(name=var.GetName(), type=type, address=var.AddressOf().GetValue())
+                    .format(name=var.GetName(), type=var_type, address=address)
             else:
-                print("Warning: variable `{name}` with type `{type}` skipped".format(name=var.GetName(), type=type))
+                print("Warning: variable `{name}` with type `{type}` skipped".format(name=var.GetName(), type=var_type))
 
         code = ("{{\n"
                 "  // Wrapper code\n"
@@ -219,8 +255,10 @@ def eval_expr(debugger, code, options={}):
                 "  {code}\n"
                 "}}").format(wrapper_code=wrapper_code, code=code)
 
+    # escape characters
     code = code.replace("\n", "\\n").replace('"', '\\"')
 
+    # send code to the interpreter
     result = lldb_evaluate(debugger, "send_command(\"" + code + "\");")
 
     # check the compilation result
@@ -244,7 +282,7 @@ def get_type_str(raw_type):
     #  and put on the qualifiers again
     # check if we have a function
     if raw_type.IsFunctionType():
-        raise NotImplementedError("An unexpected case has occured. Please fill in a bug report how you triggered this.")
+        raise NotImplementedError("An unexpected case has occurred. Please fill in a bug report how you triggered this.")
     # check if we have a function pointer
     if raw_type.IsPointerType() and raw_type.GetPointeeType().IsFunctionType():
         func_type = raw_type.GetPointeeType()
@@ -298,7 +336,7 @@ def get_type_str(raw_type):
         for i in range(len(tpl_args)):
             arg = tpl_args[i].strip()
             typ = tpl_args_type[i]
-            if typ == typ.GetBasicType(lldb.eBasicTypeInt) and int(arg)>=2**31:
+            if arg != "int" and typ == typ.GetBasicType(lldb.eBasicTypeInt) and int(arg)>=2**31:
                 tpl_args[i] = ctypes.c_int(int(arg)).value
 
         return class_name + "<" + ", ".join(str(a) for a in tpl_args) + ">"
@@ -342,12 +380,13 @@ def repl(debugger, options):
 
 def print_expr(debugger, expr, options):
     # todo: check if we should print a result
+    # todo: omit copy
     #  see cling::ValuePrinterSynthesizer::tryAttachVP for the actual check which expressions should be printed
     #  see cling::IncrementalParser::ParseInternal which parses the code and transforms the code
     #   using the ValuePrinterSynthesizer
     expr = ("{"
-            "  auto& result = " + expr + ";\n"
-                                        "  Defrustrator::ValuePrinter<decltype(result)>::print(result);"
+            "  auto _defrustr_result = " + expr + ";\n"
+                                        "  Defrustrator::ValuePrinter<decltype(_defrustr_result)>::print(_defrustr_result);"
                                         " }")
     eval_expr(debugger, expr, options)
 
