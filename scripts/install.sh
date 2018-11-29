@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # variables
-cling_binary_release_date="2018-11-01"
+CLING_BINARY_RELEASE_DATE="2018-11-01"
 
 # color helpers
 function heading () {
@@ -87,63 +87,138 @@ fancy_heading "   Till Ehrengruber"
 fancy_heading "   till@ehrengruber.ch"
 fancy_sep
 
+#
 # Check prerequisites
+#
 heading "Check if all prerequisites are installed"
-which git > /dev/null
+which git &> /dev/null
 if [ $? -ne 0 ]; then
   error "git is not installed"
 fi
 
-which cmake > /dev/null
+which cmake &> /dev/null
 if [ $? -ne 0 ]; then
-  error "cmake is not installed"
+  error "cmake not found"
 fi
 
-which wget > /dev/null
+which wget &> /dev/null
 if [ $? -ne 0 ]; then
-  error "wget is not installed"
+  error "wget not found"
 fi
 
-which make > /dev/null
+which make &> /dev/null
 if [ $? -ne 0 ]; then
-  error "make is not installed"
+  error "make not found"
 fi
 
-which tar > /dev/null
+which tar &> /dev/null
 if [ $? -ne 0 ]; then
-  error "tar is not installed"
+  error "tar not found"
+fi
+
+python -c "import pygments" &> /dev/null
+if [ $? -ne 0 ]; then
+  echo "pygments not found (install using pip)"
+fi
+
+python -c "import prompt_toolkit" &> /dev/null
+if [ $? -ne 0 ]; then
+  echo "prompt_toolkit not found (install using pip)"
 fi
 
 notice "Done."
 
+#
 # Download repository
-git clone https://github.com/tehrengruber/Defrustrator.git ~/.defrustrator
+#
+heading "Repository Setup"
+BASE_PATH="$HOME/.defrustrator"
+if [ -d "$(pwd)/.git" ]; then
+    pushd "$(pwd)" > /dev/null
+    notice "Using BASE_PATH $(pwd)"
+    BASE_PATH="$(pwd)"
+    popd > /dev/null
+fi
 
-cd ~/.defrustrator
+if [ ! -d "$BASE_PATH" ]; then
+    git clone https://github.com/tehrengruber/Defrustrator.git $BASE_PATH
+fi
 
+cd $BASE_PATH
+
+if [ -d "$BASE_PATH" ]; then
+    if [ ! -z "$(git status --porcelain)" ]; then
+      warn "Repository contains uncommited changes. Skipped update"
+      exit 1
+    fi
+    notice "Update? [yes, no]:"
+    read PROCEED
+    if [ "$PROCEED" = "yes" ]; then
+        notice "Directory $BASE_PATH already exists. Updating."
+        pushd $BASE_PATH > /dev/null
+        git pull
+        popd > /dev/null
+    fi
+    unset PROCEED
+fi
+
+#
 # Download cling
+#
 heading "Download cling"
-#  todo: test what happens on linux mint
-cling_binary_release_filename="cling_2018-11-02_fedora27.tar.bz2"
-cling_binary_download_url="https://root.cern.ch/download/cling/cling_2018-11-02_fedora27.tar.bz2"
+if [ -f /etc/os-release ]; then
+OS_NAME=$(cat /etc/os-release | sed -r 's/^NAME=["]{0,1}([^"]+)["]{0,1}/\1/;t;d')
+if [ "$OS_NAME" = "Ubuntu" ]; then
+  notice "Found Ubuntu operating system"
+  lsb_release -a 2>&1 | sed -r -e 's/Description:[\t]//;t;d' | grep Ubuntu > /dev/null
 
-if [ -f /tmp/$cling_binary_release_filename ]; then
+  # determine MAJOR_RELEASE version number
+  MAJOR_RELEASE=$(lsb_release -a 2>&1 | sed -r -e 's/Release:[\t]//;t;d' | sed -re 's/([0-9]+)\.[0-9]+/\1/')
+  if (( $MAJOR_RELEASE % 2 != 0 )); then
+      MAJOR_RELEASE=$(($MAJOR_RELEASE-1))
+      echo "You are using a non LTS release of ubuntu. This is not officially supported. Falling back to $MAJOR_RELEASE"
+  fi
+
+  # determine url
+  CLING_BINARY_RELEASE_FILENAME="cling_${CLING_BINARY_RELEASE_DATE}_ubuntu${MAJOR_RELEASE}.tar.bz2"
+  CLING_BINARY_DOWNLOAD_URL="https://root.cern.ch/download/cling/${CLING_BINARY_RELEASE_FILENAME}"
+
+  # todo: test that url is valid
+elif [ "$OS_NAME" = "Fedora" ]; then
+  notice "Found operating system Fedora"
+  RELEASE=$(cat /etc/fedora-release | sed -r 's/Fedora release ([0-9]+).*/\1/')
+  if [ "$RELEASE" -eq "28" ] || [ "$RELEASE" -eq "29" ]; then
+    # todo: check if binary for fedora 28/29 is available
+    RELEASE="27"
+  fi
+  CLING_BINARY_RELEASE_FILENAME="cling_${CLING_BINARY_RELEASE_DATE}_fedora${RELEASE}.tar.bz2"
+  CLING_BINARY_DOWNLOAD_URL="https://root.cern.ch/download/cling/${CLING_BINARY_RELEASE_FILENAME}"
+  echo $CLING_BINARY_DOWNLOAD_URL
+else
+  error "Operating system $OS_NAME not supported"
+fi
+
+else
+  error "Operating system not supported"
+fi
+
+if [ -f /tmp/$CLING_BINARY_RELEASE_FILENAME ]; then
   notice "Found existing cling package download. Skipping download."
 else
   # todo: this doesn't work right now
-  #wget --directory-prefix=/tmp --progress=bar:force $cling_binary_download_url 2>&1 | progressfilt
-  wget --directory-prefix=/tmp --progress=bar:force $cling_binary_download_url
+  #wget --directory-prefix=/tmp --progress=bar:force $CLING_BINARY_DOWNLOAD_URL 2>&1 | progressfilt
+  wget --directory-prefix=/tmp --progress=bar:force $CLING_BINARY_DOWNLOAD_URL
   if [ $? -ne 0 ]; then
     error "Download failed."
   fi
 fi
 
-notice "Extracting $cling_binary_release_filename"
+notice "Extracting $CLING_BINARY_RELEASE_FILENAME"
 if [ -d bin/cling ]; then
     notice "Found existing cling package download. Skipping extraction."
 else
     mkdir -p bin/cling
-    tar jxf /tmp/$cling_binary_release_filename -C bin/cling --strip-components 1
+    tar jxf /tmp/$CLING_BINARY_RELEASE_FILENAME -C bin/cling --strip-components 1
 fi
 
 # Compile
@@ -155,12 +230,13 @@ make
 popd > /dev/null
 
 #
-# Add to lldbinit
+# Add to .lldbinit
 #
-$(cat ~/.lldbinit 2>/dev/null | grep "~/.defrustrator/plugin/defrustrator.py")
-notice "Adding data formatter to ~/.lldbinit"
-if [ ! $ALREADY_INSTALLED -eq 0 ]; then
-	echo 'command script import "~/.defrustrator/plugin/defrustrator.py"' >> ~/.lldbinit
+cat $HOME/.lldbinit 2>/dev/null | grep "$BASE_PATH/plugin/defrustrator.py" > /dev/null
+ALREADY_INSTALLED=$?
+heading "Adding plugin to $HOME/.lldbinit"
+if [ ! "$ALREADY_INSTALLED" -eq "0" ]; then
+	echo "command script import \"$BASE_PATH/plugin/defrustrator.py\"" >> $HOME/.lldbinit
 else
 	notice "Skipping"
 fi
