@@ -242,7 +242,13 @@ def eval_expr(debugger, code, options={}):
 
             var_type = get_type_str(var.GetType())
             if type_exists(debugger, var_type):
-                wrapper_code += ("std::add_lvalue_reference<{type}>::type {name} = "
+                # remove reference qualifier
+                #  note that the following code lead to severe problems if compilation failed (i.e. when an
+                #  undeclared identifier has been used)
+                #  "std::add_lvalue_reference<{type}>::type {name} = "
+                if var_type[-1]=="&":
+                    var_type=var_type[:-1]
+                wrapper_code += ("{type}& {name} = "
                                 "*reinterpret_cast<std::remove_reference<{type}>::type*>((void*){address});\n") \
                     .format(name=var.GetName(), type=var_type, address=address)
             else:
@@ -386,8 +392,8 @@ def print_expr(debugger, expr, options):
     #   using the ValuePrinterSynthesizer
     expr = ("{"
             "  auto _defrustr_result = " + expr + ";\n"
-                                        "  Defrustrator::ValuePrinter<decltype(_defrustr_result)>::print(_defrustr_result);"
-                                        " }")
+            "  Defrustrator::ValuePrinter<decltype(_defrustr_result)>::print(_defrustr_result);"
+            " }")
     eval_expr(debugger, expr, options)
 
 def include_file(debugger, filename):
