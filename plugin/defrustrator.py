@@ -167,7 +167,7 @@ def lldb_evaluate(debugger, code, interruptable=True):
         return frame.EvaluateExpression(code, options)
 
 def type_exists(debugger, type_name):
-    if type_name == "(anonymous class)":
+    if len(type_name)>=17 and type_name[0:17] == "(anonymous class)":
         return False
     if type_name in type_cache:
         return type_cache[type_name]
