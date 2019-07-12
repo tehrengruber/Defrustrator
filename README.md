@@ -183,3 +183,14 @@ command is run.
   Compilation failed
   (lldb)
   ```
+
+# Troubleshooting
+
+## `Error: target needs to be linked with libdl (add -ldl to compiler invocation)`
+
+As the plugin loads the cling library into the debugged executable dynamically your executable has to be linked with `libdl`. In most cases appending `-ldl` to the compiler invocation is sufficient. Some versions of GCC though only link with a library if it is used in some sense. To force linking nonetheless alternatively add `-Wl,--whole-archive -ldl` to the invocation. The corresponding cmake command reads
+
+```
+SET(DL_LIBS_FORCE_LINK -Wl,--whole-archive ${CMAKE_DL_LIBS} -Wl,--no-whole-archive)
+target_link_libraries(my_target ${DL_LIBS_FORCE_LINK})
+```
