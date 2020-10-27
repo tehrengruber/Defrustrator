@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # variables
-CLING_BINARY_RELEASE_DATE="2018-11-01"
+CLING_BINARY_RELEASE_DATE="2020-10-27"
 
 # color helpers
 function heading () {
@@ -171,14 +171,23 @@ if [ "$OS_NAME" = "Ubuntu" ]; then
   lsb_release -a 2>&1 | sed -r -e 's/Description:[\t]//;t;d' | grep Ubuntu > /dev/null
 
   # determine MAJOR_RELEASE version number
-  MAJOR_RELEASE=$(lsb_release -a 2>&1 | sed -r -e 's/Release:[\t]//;t;d' | sed -re 's/([0-9]+)\.[0-9]+/\1/')
+  MAJOR_RELEASE=$(lsb_release -a 2>&1 | sed -r -e 's/Release:[\t]//;t;d' | sed -re 's/([0-9]+)\.([0-9]+)/\1/')
+  MINOR_RELEASE=$(lsb_release -a 2>&1 | sed -r -e 's/Release:[\t]//;t;d' | sed -re 's/([0-9]+)\.([0-9]+)/\2/')
   if (( $MAJOR_RELEASE % 2 != 0 )); then
       MAJOR_RELEASE=$(($MAJOR_RELEASE-1))
       echo "You are using a non LTS release of ubuntu. This is not officially supported. Falling back to $MAJOR_RELEASE"
   fi
 
+  if [ "$MAJOR_RELEASE" -eq "20" ]; then
+    CLING_BINARY_RELEASE_SUFFIX="$MAJOR_RELEASE$MINOR_RELEASE"
+  elif [ "$MAJOR_RELEASE" -eq "18" ]; then
+    CLING_BINARY_RELEASE_SUFFIX="$MAJOR_RELEASE.$MINOR_RELEASE"
+  else
+    CLING_BINARY_RELEASE_SUFFIX="$MAJOR_RELEASE"
+  fi
+
   # determine url
-  CLING_BINARY_RELEASE_FILENAME="cling_${CLING_BINARY_RELEASE_DATE}_ubuntu${MAJOR_RELEASE}.tar.bz2"
+  CLING_BINARY_RELEASE_FILENAME="cling_${CLING_BINARY_RELEASE_DATE}_ROOT-ubuntu${CLING_BINARY_RELEASE_SUFFIX}.tar.bz2"
   CLING_BINARY_DOWNLOAD_URL="https://root.cern.ch/download/cling/${CLING_BINARY_RELEASE_FILENAME}"
 
   # todo: test that url is valid
@@ -189,7 +198,7 @@ elif [ "$OS_NAME" = "Fedora" ]; then
     # todo: check if binary for fedora 28/29 is available
     RELEASE="27"
   fi
-  CLING_BINARY_RELEASE_FILENAME="cling_${CLING_BINARY_RELEASE_DATE}_fedora${RELEASE}.tar.bz2"
+  CLING_BINARY_RELEASE_FILENAME="cling_${CLING_BINARY_RELEASE_DATE}_ROOT-fedora${RELEASE}.tar.bz2"
   CLING_BINARY_DOWNLOAD_URL="https://root.cern.ch/download/cling/${CLING_BINARY_RELEASE_FILENAME}"
   echo $CLING_BINARY_DOWNLOAD_URL
 else
