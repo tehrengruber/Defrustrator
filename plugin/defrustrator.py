@@ -138,7 +138,7 @@ def lldb_evaluate(debugger, code, interruptable=True):
     thread = process.GetSelectedThread()
     frame = thread.GetSelectedFrame()
     if not frame.IsValid():
-        print "no frame here"
+        print("no frame here")
         return
     if process.GetUniqueID() != current_process_id:
         current_process_id=process.GetUniqueID()
@@ -220,7 +220,7 @@ def eval_expr(debugger, code, options={}):
         # iterate over all variables
         for var in frame.GetVariables(True, True, False, True):
             # set depth to maximum integer value in the beginning since global variable will not be found in any block
-            var_depths[var.GetID()] = sys.maxint
+            var_depths[var.GetID()] = 2147483647
             for i, block_vars in enumerate(blocks_vars):
                 for block_var in block_vars:
                     if var.GetID() == block_var.GetID():
@@ -235,7 +235,7 @@ def eval_expr(debugger, code, options={}):
                     vars[var.GetName()] = (var_depths[var.GetID()], var)
 
         # write wrapper code making variables accessible
-        for (_, (depth, var)) in vars.iteritems():
+        for (_, (depth, var)) in vars.items():
             address = frame.EvaluateExpression("&"+var.GetName()).GetValue()
             if var == "this":
                 print("Note: variable `this` skipped")
@@ -446,7 +446,7 @@ def parse_command_options(commands):
 
 def cling(debugger, command, result, dict):
     if len(debugger.GetSelectedTarget().FindSymbols("dlopen")) == 0:
-        print "Error: target needs to be linked with libdl (add -ldl to compiler invocation)"
+        print("Error: target needs to be linked with libdl (add -ldl to compiler invocation)")
         return
 
     #
@@ -456,7 +456,7 @@ def cling(debugger, command, result, dict):
     pos, options = parse_command_options(commands[1:])
 
     if len(commands) < 1 or commands[0] == '':
-        print help()
+        print(help())
         return
 
     if commands[0] == "start":
@@ -476,7 +476,7 @@ def cling(debugger, command, result, dict):
     elif commands[0] == "print" or commands[0] == "p":
         print_expr(debugger, ' '.join(commands[pos+1:]), options)
     else:
-        print help()
+        print(help())
 
     return None
 
