@@ -24,7 +24,7 @@ target_compile_definitions(lldbclingbridge PUBLIC DEFRUSTRATOR_BASE_PATH=\"${CMA
 add_executable(example_scope example/scope.cpp)
 target_link_libraries(example_scope dl)
 
-find_package (Eigen3)
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
 if (TARGET Eigen3::Eigen)
   add_executable(example_eigen example/eigen.cpp)
