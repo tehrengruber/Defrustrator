@@ -1,5 +1,8 @@
+project(Defrustrator)
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_CXX_STANDARD 11)
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
 #
 # General setup
@@ -21,13 +24,14 @@ target_compile_definitions(lldbclingbridge PUBLIC DEFRUSTRATOR_BASE_PATH=\"${CMA
 add_executable(example_scope example/scope.cpp)
 target_link_libraries(example_scope dl)
 
-# todo: check if eigen is installed
-add_executable(example_eigen example/eigen.cpp)
-target_include_directories(example_eigen PUBLIC /usr/include/eigen3)
-set_source_files_properties(example/eigen.cpp PROPERTIES COMPILE_FLAGS -g)
-target_link_libraries(example_eigen dl)
+find_package (Eigen3)
 
-add_executable(example_eigen2 example/eigen2.cpp)
-target_include_directories(example_eigen2 PUBLIC /usr/include/eigen3)
-set_source_files_properties(example/eigen2.cpp PROPERTIES COMPILE_FLAGS -g)
-target_link_libraries(example_eigen2 dl)
+if (TARGET Eigen3::Eigen)
+  add_executable(example_eigen example/eigen.cpp)
+  set_source_files_properties(example/eigen.cpp PROPERTIES COMPILE_FLAGS -g)
+  target_link_libraries(example_eigen dl Eigen3::Eigen)
+
+  add_executable(example_eigen2 example/eigen2.cpp)
+  set_source_files_properties(example/eigen2.cpp PROPERTIES COMPILE_FLAGS -g)
+  target_link_libraries(example_eigen2 dl Eigen3::Eigen)
+endif (TARGET Eigen3::Eigen)
