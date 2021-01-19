@@ -164,6 +164,7 @@ cd $BASE_PATH
 # Download cling
 #
 heading "Download cling"
+if [ -z $CLING_BINARY_DOWNLOAD_URL ]; then
 if [ -f /etc/os-release ]; then
 OS_NAME=$(cat /etc/os-release | sed -r 's/^NAME=["]{0,1}([^"]+)["]{0,1}/\1/;t;d')
 if [ "$OS_NAME" = "Ubuntu" ]; then
@@ -207,6 +208,7 @@ fi
 
 else
   error "Operating system not supported"
+fi
 fi
 
 if [ -f /tmp/$CLING_BINARY_RELEASE_FILENAME ]; then
