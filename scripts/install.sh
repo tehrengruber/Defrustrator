@@ -209,6 +209,10 @@ fi
 else
   error "Operating system not supported"
 fi
+
+else
+notice "Using user-specified download url: $CLING_BINARY_DOWNLOAD_URL"
+CLING_BINARY_RELEASE_FILENAME="${CLING_BINARY_DOWNLOAD_URL##*/}"
 fi
 
 if [ -f /tmp/$CLING_BINARY_RELEASE_FILENAME ]; then
