@@ -8,6 +8,7 @@ import ctypes
 import json
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
+from prompt_toolkit.lexers import PygmentsLexer
 from pygments.lexers.c_cpp import CppLexer
 from os.path import expanduser
 
@@ -376,7 +377,7 @@ def repl(debugger, options):
         history = FileHistory(history_file)
         while True:
             # read command
-            cmd = prompt(u"(cling) ", lexer=CppLexer, history=history)
+            cmd = prompt(u"(cling) ", lexer=PygmentsLexer(CppLexer), history=history)
             # evaluate command
             eval_expr(debugger, cmd, options)
     except KeyboardInterrupt:
