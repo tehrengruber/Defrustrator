@@ -229,6 +229,8 @@ def eval_expr(debugger, code, options={}):
         # dictionary assigning each variable name an array containing it's depth and an SBValue objects
         vars = {}
         for var in frame.GetVariables(True, True, False, True):
+            if not var.GetName():
+                continue
             if not var.GetName() in vars:
                 vars[var.GetName()] = (var_depths[var.GetID()], var)
             else:
@@ -321,7 +323,7 @@ def get_type_str(raw_type):
         tpl_args = []
         arg_begin=canonical_unwrapped_type_name.find('<')+1
         depth=0
-        for pos in xrange(0, len(canonical_unwrapped_type_name)):
+        for pos in range(0, len(canonical_unwrapped_type_name)):
             if canonical_unwrapped_type_name[pos] == "<":
                 depth += 1
             if canonical_unwrapped_type_name[pos] == ">":

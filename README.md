@@ -31,8 +31,9 @@ Hello World!
 ```
 
 ```
+(lldb) cling include_directories /usr/include/eigen3/
+(lldb) cling include <Eigen/Dense>
 (lldb) cling repl
-(cling) #include <Eigen/Dense>
 (cling) Eigen::VectorXd v(3);
 (cling) v.setConstant(1);
 (lldb) cling p v
