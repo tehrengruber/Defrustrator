@@ -37,6 +37,7 @@ base_path = os.path.dirname(__file__) + "/../"
 
 history_file = expanduser("~/.lldb-defrustrator-history")
 current_process_id = None
+loaded_configs = []
 
 type_cache = {}
 
@@ -127,7 +128,7 @@ def help():
         print <expr> -- Print expressions return value using operator<< if possible
         expression <expr> -- Evaluate expression
         include_directories <dir1>, <dir2>, ... -- Add include directories
-        load_config -- Load configuration of include directories, compile definitions, headers
+        load_config <file> -- Load configuration of include directories, compile definitions, headers
     '''
 
 def lldb_evaluate(debugger, code, interruptable=True):
@@ -143,7 +144,7 @@ def lldb_evaluate(debugger, code, interruptable=True):
         return
     if process.GetUniqueID() != current_process_id:
         current_process_id=process.GetUniqueID()
-        load_config(debugger)
+        load_all_configs(debugger)
 
     # start a thread that runs until the currently evaluated expression returns.
     # since the expression is evaluated without any timeout and
@@ -159,7 +160,7 @@ def lldb_evaluate(debugger, code, interruptable=True):
         # spin until thread finishes and use InterruptGuard to interrupt the process
         #  when ctrl+c is pressed
         #with InterruptGuard(debugger) as interrupt_guard:
-        while thread.isAlive():
+        while thread.is_alive():
             time.sleep(0.05)
 
         thread.join()
@@ -402,41 +403,53 @@ def print_expr(debugger, expr, options):
 def include_file(debugger, filename):
     eval_expr(debugger, "#include {}".format(filename), {"global": True})
 
-def load_config(debugger):
-    default_config = {
-        "include_directories": [],
-        "compile_definitions": [],
-        "headers": []
-    }
+def load_config(debugger, conf_path=None):
+    if not os.path.isfile(conf_path):
+        print(f"Error: no config found at `{conf_path}`.")
+        return
+
+    if conf_path not in loaded_configs:
+        loaded_configs.append(conf_path)
+
+        # actually load the config
+        if debugger.GetSelectedTarget().GetProcess().GetUniqueID() == current_process_id:
+            _load_config(debugger, conf_path)
+    else:
+        print(f"Warning: config `{conf_path}` already loaded.")
+
+def _load_config(debugger, conf_path):
+    print(f"Loading config {conf_path}")
+    assert os.path.isfile(conf_path)
+    with open(conf_path, "r") as read_file:
+        conf = json.load(read_file)
+        print("Adding include directories {}".format(' '.join(conf["include_directories"])))
+        include_directories(debugger, conf["include_directories"])
+        print("Loading compile_definitions {}".format(' '.join(conf["compile_definitions"])))
+        for comp_def in conf["compile_definitions"]:
+            pos = comp_def.find("=")
+            if pos == -1:
+                code = "#define {}".format(comp_def)
+            else:
+                code = "#define {} {}".format(comp_def[0:pos], comp_def[pos+1:])
+            #print(code)
+            eval_expr(debugger, code, {"global": True})
+        print("Loading headers {}".format(' '.join(conf["headers"])))
+        for header in conf["headers"]:
+            if header[0] != "\"" and header[0] != "<":
+                header = "\""+header+"\""
+            include_file(debugger, header)
+
+def load_all_configs(debugger, conf_path=None):
+    # load system configs
     target = debugger.GetSelectedTarget()
     for m in target.module_iter():
         conf_path = str(m.GetFileSpec())+".defrustrator.json"
         if os.path.isfile(conf_path):
-            print("Loading config {}".format(conf_path))
-            with open(conf_path, "r") as read_file:
-                # parse config
-                conf = json.load(read_file)
-                conf_stash = default_config.copy()
-                conf_stash.update(conf)
-                conf = conf_stash
-
-                print("Adding include directories {}".format(' '.join(conf["include_directories"])))
-                include_directories(debugger, conf["include_directories"])
-                print("Loading compile_definitions {}".format(' '.join(conf["compile_definitions"])))
-                for comp_def in conf["compile_definitions"]:
-                    pos = comp_def.find("=")
-                    if pos == -1:
-                        code = "#define {}".format(comp_def)
-                    else:
-                        code = "#define {} {}".format(comp_def[0:pos], comp_def[pos+1:])
-                    #print(code)
-                    eval_expr(debugger, code, {"global": True})
-                print("Loading headers {}".format(' '.join(conf["headers"])))
-                for header in conf["headers"]:
-                    if header[0] != "\"" and header[0] != "<":
-                        header = "\""+header+"\""
-                    include_file(debugger, header)
-
+            _load_config(conf_path)
+    
+    # load user configs
+    for conf_path in loaded_configs:
+        _load_config(debugger, conf_path)
 
 def parse_command_options(commands):
     options = {}
@@ -448,6 +461,10 @@ def parse_command_options(commands):
     return pos, options
 
 def cling(debugger, command, result, dict):
+    if not debugger.GetSelectedTarget().GetProcess():
+        print("Error: no process. Cling commands can only be issued to a running process.")
+        return
+
     if len(debugger.GetSelectedTarget().FindSymbols("dlopen")) == 0:
         print("Error: target needs to be linked with libdl (add -ldl to compiler invocation)")
         return
@@ -469,7 +486,11 @@ def cling(debugger, command, result, dict):
     elif commands[0] == "include_directories":
         include_directories(debugger, commands[1:])
     elif commands[0] == "load_config":
-        load_config(debugger)
+        if len(commands) == 2:
+            load_config(debugger, commands[1])
+        else:
+            print("Error: load_config takes exactly one argument.\n")
+            print(help())
     elif commands[0] == "type_exists":
         type_exists(debugger, ' '.join(commands[1:]))
     elif commands[0] == "repl":

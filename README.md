@@ -98,9 +98,9 @@ __include_directories \<dir1\>, \<dir2\>, ...__ Add include directories
 (lldb) cling include_directories /usr/include/eigen3
 ```
 
-__load_config \<file\>__ Load configuration file
+__load_config__ Load configuration file
 
-Include directories, compiler flags, headers to be included can be stored to a json file loading when the first cling
+Include directories, compiler flags, headers to be included can be stored to a json file loaded when the first cling
 command is run.
 
 ```

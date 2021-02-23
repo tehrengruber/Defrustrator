@@ -116,6 +116,11 @@ if [ $? -ne 0 ]; then
   error "tar not found"
 fi
 
+which bzip2 &> /dev/null
+if [ $? -ne 0 ]; then
+  error "bzip2 not found"
+fi
+
 python -c "import pygments" &> /dev/null
 if [ $? -ne 0 ]; then
   echo "pygments not found (install using pip)"
