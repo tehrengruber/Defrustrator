@@ -129,6 +129,7 @@ def help():
         expression <expr> -- Evaluate expression
         include_directories <dir1>, <dir2>, ... -- Add include directories
         load_config <file> -- Load configuration of include directories, compile definitions, headers
+        load_library <file> -- Load shared library
     '''
 
 def lldb_evaluate(debugger, code, interruptable=True):
@@ -401,7 +402,10 @@ def print_expr(debugger, expr, options):
     eval_expr(debugger, expr, options)
 
 def include_file(debugger, filename):
-    eval_expr(debugger, "#include {}".format(filename), {"global": True})
+    eval_expr(debugger, f"#include {filename}", {"global": True})
+
+def load_library(debugger, filename):
+    eval_expr(debugger, f"""#pragma cling load("{filename}")""", {"global": True})
 
 def load_config(debugger, conf_path=None):
     if not os.path.isfile(conf_path):
@@ -414,6 +418,8 @@ def load_config(debugger, conf_path=None):
         # actually load the config
         if debugger.GetSelectedTarget().GetProcess().GetUniqueID() == current_process_id:
             _load_config(debugger, conf_path)
+        else:
+            print("Config will be loaded on next command.") # todo: load immediately
     else:
         print(f"Warning: config `{conf_path}` already loaded.")
 
@@ -438,6 +444,9 @@ def _load_config(debugger, conf_path):
             if header[0] != "\"" and header[0] != "<":
                 header = "\""+header+"\""
             include_file(debugger, header)
+        print("Loading shared libraries {}".format(' '.join(conf["libraries"])))
+        for library in conf["libraries"]:
+            load_library(debugger, library)
 
 def load_all_configs(debugger, conf_path=None):
     # load system configs
@@ -486,11 +495,11 @@ def cling(debugger, command, result, dict):
     elif commands[0] == "include_directories":
         include_directories(debugger, commands[1:])
     elif commands[0] == "load_config":
-        if len(commands) == 2:
-            load_config(debugger, commands[1])
-        else:
+        if len(commands) != 2:
             print("Error: load_config takes exactly one argument.\n")
             print(help())
+            return None
+        load_config(debugger, commands[1])
     elif commands[0] == "type_exists":
         type_exists(debugger, ' '.join(commands[1:]))
     elif commands[0] == "repl":
@@ -499,6 +508,12 @@ def cling(debugger, command, result, dict):
         eval_expr(debugger, ' '.join(commands[pos+1:]), options)
     elif commands[0] == "print" or commands[0] == "p":
         print_expr(debugger, ' '.join(commands[pos+1:]), options)
+    elif commands[0] == "load_library":
+        if len(commands) != 2:
+            print("Error: load_library takes exactly one argument.\n")
+            print(help())
+            return None
+        load_library(debugger, commands[1])
     else:
         print(help())
 

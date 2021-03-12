@@ -14,12 +14,13 @@ bash -c "$(wget https://raw.githubusercontent.com/tehrengruber/Defrustrator/mast
 __Help__
 ```
 The following subcommands are supported:
-    include ("<file>"/<<file>>) -- Include source file
-    repl -- Start cling repl
-    print <expr> -- Print expressions return value using operator<< if possible
-    expression <expr> -- Evaluate expression
-    include_directories <dir1>, <dir2>, ... -- Add include directories
-    load_config -- Load configuration of include directories, compile definitions, headers
+        include ("<file>"/<<file>>) -- Include source file
+        repl -- Start cling repl
+        print <expr> -- Print expressions return value using operator<< if possible
+        expression <expr> -- Evaluate expression
+        include_directories <dir1>, <dir2>, ... -- Add include directories
+        load_config <file> -- Load configuration of include directories, compile definitions, headers
+        load_library <file> -- Load shared library
 ```
 
 __Demo__
@@ -98,18 +99,27 @@ __include_directories \<dir1\>, \<dir2\>, ...__ Add include directories
 (lldb) cling include_directories /usr/include/eigen3
 ```
 
-__load_config__ Load configuration file
+__load_library__ Load shared library file
 
-Include directories, compiler flags, headers to be included can be stored to a json file loaded when the first cling
-command is run.
+```
+(lldb) cling load_library /some/path/mylib.so
+```
+
+__load_config <file>__ Load configuration file
+
+Include directories, compiler flags, headers, shared libraries to be included can be stored to a json file loaded 
+when the first cling command is run.
 
 ```
 {
   "include_directories": ["/usr/include/eigen3"],
   "compile_definitions": ["SOMEVAR=1"],
-  "headers": ["<Eigen/Dense>"]
+  "headers": ["<Eigen/Dense>"],
+  "libraries": ["/some/path/mylib.so"]
 }
 ```
+
+__
 
 ## Limitations
 
